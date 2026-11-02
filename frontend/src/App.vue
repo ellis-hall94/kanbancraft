@@ -1,7 +1,59 @@
 <script setup lang="ts">
+import { useRoute, useRouter } from 'vue-router'
 import { useBoardsStore } from './stores/boards'
 
 const boardsStore = useBoardsStore()
+const route = useRoute()
+const router = useRouter()
+
+function createBoard() {
+  const name = window.prompt('Enter a name for the new board:')
+
+  if (name === null) return
+
+  const boardId = boardsStore.createBoard(name)
+
+  if (!boardId) {
+    window.alert('Please enter a board name.')
+    return
+  }
+
+  void router.push(`/boards/${boardId}`)
+}
+
+function renameBoard(boardId: string, currentName: string) {
+  const name = window.prompt('Enter a new board name:', currentName)
+
+  if (name === null) return
+
+  if (!boardsStore.renameBoard(boardId, name)) {
+    window.alert('Please enter a board name.')
+  }
+}
+
+function deleteBoard(boardId: string, name: string) {
+  if (boardsStore.boards.length <= 1) {
+    window.alert('You must keep at least one board.')
+    return
+  }
+
+  if (!window.confirm(`Delete "${name}" and all its columns and cards?`)) {
+    return
+  }
+
+  const isDisplayedBoard =
+  route.params.boardId === boardId ||
+  (route.params.boardId === undefined && boardsStore.activeBoardId === boardId)
+
+  if (!boardsStore.deleteBoard(boardId)) {
+    window.alert('The board could not be deleted.')
+    return
+  }
+
+  if (isDisplayedBoard) {
+    void router.replace(`/boards/${boardsStore.activeBoardId}`)
+  }
+}
 </script>
 
 <template>
@@ -11,13 +63,35 @@ const boardsStore = useBoardsStore()
 
       <nav aria-label="Boards">
         <h2 class="sidebar__heading">Your boards</h2>
+
         <ul class="sidebar__boards">
-          <li v-for="board in boardsStore.boards" :key="board.id">
+          <li v-for="board in boardsStore.boards" :key="board.id" class="sidebar__board-item">
             <RouterLink class="sidebar__link" :to="`/boards/${board.id}`">
               {{ board.name }}
             </RouterLink>
+
+            <div class="sidebar__board-actions">
+              <button
+                type="button"
+                :aria-label="`Rename ${board.name}`"
+                @click="renameBoard(board.id, board.name)"
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                :aria-label="`Delete ${board.name}`"
+                @click="deleteBoard(board.id, board.name)"
+              >
+                Delete
+              </button>
+            </div>
           </li>
         </ul>
+
+        <button class="sidebar__create-board" type="button" @click="createBoard">
+          Create board
+        </button>
       </nav>
     </aside>
 
@@ -127,5 +201,37 @@ a {
   .main-content {
     padding: 1.25rem;
   }
+}
+
+.sidebar__board-item {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.sidebar__board-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.sidebar__board-actions button,
+.sidebar__create-board {
+  min-height: 2rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  background: white;
+  color: #172033;
+  cursor: pointer;
+}
+
+.sidebar__board-actions button:focus-visible,
+.sidebar__create-board:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.sidebar__create-board {
+  margin-top: 0.75rem;
 }
 </style>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
-import {createMemoryHistory, createRouter } from 'vue-router'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import App from '../App.vue'
 import BoardView from '../views/BoardView.vue'
 
