@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBoardsStore } from '../stores/boards'
 import type { TaskCard } from '../types/kanban'
+import { VueDraggable } from 'vue-draggable-plus'
 
 const route = useRoute()
 const boardsStore = useBoardsStore()
@@ -134,6 +135,33 @@ function changeCardColumn(boardId: string, cardId: string, event: Event) {
   }
 }
 
+function applyCardOrder(boardId: string, columnId: string, cards: TaskCard[]) {
+  const currentBoard = boardsStore.boards.find((item) => item.id === boardId)
+  const column = currentBoard?.columns.find((item) => item.id === columnId)
+
+  if (!column) {
+    window.alert('The column could not be found.')
+    return
+  }
+
+  const cardIds = new Set(cards.map((card) => card.id))
+
+  if (
+    cards.length !== column.cards.length ||
+    cardIds.size !== cards.length ||
+    column.cards.some((card) => !cardIds.has(card.id))
+  ) {
+    window.alert('The card order could not be updated.')
+    return
+  }
+
+  for (const [index, card] of cards.entries()) {
+    if (!boardsStore.moveCard(boardId, card.id, columnId, index)) {
+      window.alert('The card order could not be updated.')
+      return
+    }
+  }
+}
 
 </script>
 
@@ -209,7 +237,20 @@ function changeCardColumn(boardId: string, cardId: string, event: Event) {
           Add card
         </button>
 
-        <ul v-if="column.cards.length" class="board-column__cards">
+        <VueDraggable
+        tag="ul"
+        class="board-column__cards"
+        :aria-label="`${column.title} cards`"
+        :model-value="[...column.cards].sort((a, b) => a.order - b.order)"
+        draggable=".task-card"
+        handle=".task-card__drag-handle"
+        ghost-class="task-card--ghost"
+        :animation="0"
+        :delay="150"
+        :delay-on-touch-only="true"
+        :touch-start-threshold="4"
+        @update:model-value="applyCardOrder(board.id, column.id, $event)"
+        >
           <li
             v-for="(card, cardIndex) in [...column.cards].sort((a, b) => a.order - b.order)"
             :key="card.id"
@@ -269,9 +310,8 @@ function changeCardColumn(boardId: string, cardId: string, event: Event) {
               </select>
             </label>
           </li>
-        </ul>
-
-        <p v-else class="board-column__empty">No cards yet. Add a card to get started.</p>
+        </VueDraggable>
+        <p v-if="column.cards.length === 0" class="board-column__empty">No cards yet. Add a card to get started.</p>
       </section>
     </div>
   </section>
@@ -370,6 +410,10 @@ function changeCardColumn(boardId: string, cardId: string, event: Event) {
   list-style: none;
 }
 
+.board-column__cards {
+  min-height: 3rem;
+}
+
 .task-card {
   padding: 0.875rem;
   border: 1px solid #dbe2ea;
@@ -386,6 +430,27 @@ function changeCardColumn(boardId: string, cardId: string, event: Event) {
   margin: 0;
   font-size: 0.875rem;
   line-height: 1.5;
+}
+
+.task-card__drag-handle {
+  display: block;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.25rem;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.task-card__drag-handle:active {
+  cursor: grabbing;
+}
+
+.task-card--ghost {
+  opacity: 0.4;
 }
 
 @media (max-width: 40rem) {
