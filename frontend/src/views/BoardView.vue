@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useBoardsStore } from '../stores/boards'
 import type { TaskCard } from '../types/kanban'
-import { VueDraggable } from 'vue-draggable-plus'
+import { VueDraggable, type DraggableEvent } from 'vue-draggable-plus'
 
 const route = useRoute()
 const boardsStore = useBoardsStore()
@@ -135,31 +135,16 @@ function changeCardColumn(boardId: string, cardId: string, event: Event) {
   }
 }
 
-function applyCardOrder(boardId: string, columnId: string, cards: TaskCard[]) {
-  const currentBoard = boardsStore.boards.find((item) => item.id === boardId)
-  const column = currentBoard?.columns.find((item) => item.id === columnId)
+function moveDraggedCard(boardId: string, columnId: string, event: DraggableEvent<TaskCard>) {
+  const targetOrder = event.newDraggableIndex
 
-  if (!column) {
-    window.alert('The column could not be found.')
+  if (typeof targetOrder !== 'number' || !Number.isInteger(targetOrder)) {
+    window.alert('The card drop position could not be determined.')
     return
   }
 
-  const cardIds = new Set(cards.map((card) => card.id))
-
-  if (
-    cards.length !== column.cards.length ||
-    cardIds.size !== cards.length ||
-    column.cards.some((card) => !cardIds.has(card.id))
-  ) {
-    window.alert('The card order could not be updated.')
-    return
-  }
-
-  for (const [index, card] of cards.entries()) {
-    if (!boardsStore.moveCard(boardId, card.id, columnId, index)) {
-      window.alert('The card order could not be updated.')
-      return
-    }
+  if (!boardsStore.moveCard(boardId, event.data.id, columnId, targetOrder)) {
+    window.alert('The card could not be moved.')
   }
 }
 
@@ -249,13 +234,18 @@ function applyCardOrder(boardId: string, columnId: string, cards: TaskCard[]) {
         :delay="150"
         :delay-on-touch-only="true"
         :touch-start-threshold="4"
-        @update:model-value="applyCardOrder(board.id, column.id, $event)"
+        :group="{ name: 'kanban-cards', pull: true, put: true }"
+        @update="moveDraggedCard(board.id, column.id, $event)"
+        @add="moveDraggedCard(board.id, column.id, $event)"
         >
           <li
             v-for="(card, cardIndex) in [...column.cards].sort((a, b) => a.order - b.order)"
             :key="card.id"
             class="task-card"
           >
+          <span class="task-card__drag-handle" aria-hidden="true">
+            Drag to reorder
+          </span>
             <h3>{{ card.title }}</h3>
             <p v-if="card.description">{{ card.description }}</p>
 
